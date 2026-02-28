@@ -4,19 +4,19 @@ pub const WINDOW_W: f32 = 800.0;
 pub const WINDOW_H: f32 = 600.0;
 pub const CENTER_X: f32 = 400.0;
 pub const CENTER_Y: f32 = 300.0;
-pub const ROAD_HALF: f32 = 60.0; // half road width = 120/2
-pub const LANE_OFFSET: f32 = 30.0; // offset from center to lane center
+pub const ROAD_HALF: f32 = 60.0; 
+pub const LANE_OFFSET: f32 = 30.0;
 pub const VEHICLE_SPEED: f32 = 2.5;
-pub const SAFE_DIST: f32 = 50.0; // min distance to car ahead
+pub const SAFE_DIST: f32 = 50.0; 
 pub const VEHICLE_W: f32 = 20.0;
 pub const VEHICLE_H: f32 = 34.0;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Direction {
-    North, // moving north (from south spawn)
-    South, // moving south (from north spawn)
-    East,  // moving east  (from west spawn)
-    West,  // moving west  (from east spawn)
+    North, 
+    South, 
+    East, 
+    West,  
 }
 
 impl Direction {
@@ -46,12 +46,11 @@ impl Route {
         }
     }
 
-    /// Color for each route
     pub fn color(&self) -> (u8, u8, u8) {
         match self {
-            Route::Straight => (255, 255, 80),   // yellow
-            Route::TurnLeft => (80, 180, 255),    // blue
-            Route::TurnRight => (255, 140, 0),    // orange
+            Route::Straight => (255, 255, 80),   
+            Route::TurnLeft => (80, 180, 255),    
+            Route::TurnRight => (255, 140, 0),    
         }
     }
 }
@@ -71,7 +70,6 @@ pub struct Vehicle {
     pub route: Route,
     pub state: VehicleState,
     pub waiting: bool,
-    // For turning
     turn_progress: f32,
     turn_start_x: f32,
     turn_start_y: f32,
@@ -111,10 +109,8 @@ impl Vehicle {
     }
 
     fn update_approaching(&mut self, lights: &TrafficLightSystem, ahead: Option<(f32, f32)>) {
-        // Stop line positions for each direction
         let stop_line = stop_line_pos(&self.direction);
 
-        // Check if we reached stop line
         let at_stop = match self.direction {
             Direction::North => self.y <= stop_line + VEHICLE_H,
             Direction::South => self.y >= stop_line - VEHICLE_H,
@@ -122,7 +118,6 @@ impl Vehicle {
             Direction::West  => self.x <= stop_line + VEHICLE_H,
         };
 
-        // Check distance to car ahead
         let blocked_by_ahead = if let Some((ax, ay)) = ahead {
             let dist = ((self.x - ax).powi(2) + (self.y - ay).powi(2)).sqrt();
             dist < SAFE_DIST
@@ -132,7 +127,6 @@ impl Vehicle {
 
         let green = lights.is_green(&self.direction);
 
-        // Stop at red or if car ahead is too close
         let should_stop = blocked_by_ahead || (at_stop && !green);
         self.waiting = at_stop && !green;
 
@@ -140,7 +134,6 @@ impl Vehicle {
             return;
         }
 
-        // If green and at stop line, enter intersection
         if at_stop && green {
             self.state = VehicleState::InIntersection;
             self.setup_turn();
@@ -155,7 +148,6 @@ impl Vehicle {
         self.turn_start_y = self.y;
         self.turn_progress = 0.0;
 
-        // Determine exit direction and position based on route + incoming direction
         let (exit_dir, ex, ey) = exit_info(&self.direction, &self.route);
         self.exit_dir = exit_dir;
         self.turn_end_x = ex;
@@ -172,18 +164,15 @@ impl Vehicle {
             return;
         }
 
-        // Bezier curve through intersection center
         let (cx, cy) = (CENTER_X, CENTER_Y);
         let t = self.turn_progress;
         let mt = 1.0 - t;
 
-        // Quadratic bezier: P = (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2
         self.x = mt * mt * self.turn_start_x + 2.0 * mt * t * cx + t * t * self.turn_end_x;
         self.y = mt * mt * self.turn_start_y + 2.0 * mt * t * cy + t * t * self.turn_end_y;
     }
 
     fn update_exiting(&mut self) {
-        // Move in exit direction until off screen
         match self.exit_dir {
             Direction::North => self.y -= VEHICLE_SPEED,
             Direction::South => self.y += VEHICLE_SPEED,
@@ -221,38 +210,33 @@ impl Vehicle {
 
 fn spawn_pos(dir: &Direction) -> (f32, f32) {
     match dir {
-        Direction::North => (CENTER_X + LANE_OFFSET, WINDOW_H + 20.0), // right lane going up
-        Direction::South => (CENTER_X - LANE_OFFSET, -20.0),            // left lane going down
-        Direction::East  => (-20.0, CENTER_Y + LANE_OFFSET),            // bottom lane going right
-        Direction::West  => (WINDOW_W + 20.0, CENTER_Y - LANE_OFFSET),  // top lane going left
+        Direction::North => (CENTER_X + LANE_OFFSET, WINDOW_H + 20.0),
+        Direction::South => (CENTER_X - LANE_OFFSET, -20.0),            
+        Direction::East  => (-20.0, CENTER_Y + LANE_OFFSET),            
+        Direction::West  => (WINDOW_W + 20.0, CENTER_Y - LANE_OFFSET),  
     }
 }
 
 fn stop_line_pos(dir: &Direction) -> f32 {
     match dir {
-        Direction::North => CENTER_Y + ROAD_HALF,  // y stop line (bottom of intersection)
-        Direction::South => CENTER_Y - ROAD_HALF,  // y stop line (top of intersection)
-        Direction::East  => CENTER_X - ROAD_HALF,  // x stop line (left of intersection)
-        Direction::West  => CENTER_X + ROAD_HALF,  // x stop line (right of intersection)
+        Direction::North => CENTER_Y + ROAD_HALF, 
+        Direction::South => CENTER_Y - ROAD_HALF,  
+        Direction::East  => CENTER_X - ROAD_HALF,  
+        Direction::West  => CENTER_X + ROAD_HALF, 
     }
 }
 
 fn exit_info(dir: &Direction, route: &Route) -> (Direction, f32, f32) {
-    // Returns (exit_direction, exit_x, exit_y) after intersection
     match (dir, route) {
-        // Coming from south, moving north
         (Direction::North, Route::Straight)   => (Direction::North, CENTER_X + LANE_OFFSET, CENTER_Y - ROAD_HALF),
         (Direction::North, Route::TurnRight)  => (Direction::East,  CENTER_X + ROAD_HALF, CENTER_Y - LANE_OFFSET),
         (Direction::North, Route::TurnLeft)   => (Direction::West,  CENTER_X - ROAD_HALF, CENTER_Y + LANE_OFFSET),
-        // Coming from north, moving south
         (Direction::South, Route::Straight)   => (Direction::South, CENTER_X - LANE_OFFSET, CENTER_Y + ROAD_HALF),
         (Direction::South, Route::TurnRight)  => (Direction::West,  CENTER_X - ROAD_HALF, CENTER_Y + LANE_OFFSET),
         (Direction::South, Route::TurnLeft)   => (Direction::East,  CENTER_X + ROAD_HALF, CENTER_Y - LANE_OFFSET),
-        // Coming from west, moving east
         (Direction::East, Route::Straight)    => (Direction::East,  CENTER_X + ROAD_HALF, CENTER_Y + LANE_OFFSET),
         (Direction::East, Route::TurnRight)   => (Direction::South, CENTER_X + LANE_OFFSET, CENTER_Y + ROAD_HALF),
         (Direction::East, Route::TurnLeft)    => (Direction::North, CENTER_X - LANE_OFFSET, CENTER_Y - ROAD_HALF),
-        // Coming from east, moving west
         (Direction::West, Route::Straight)    => (Direction::West,  CENTER_X - ROAD_HALF, CENTER_Y - LANE_OFFSET),
         (Direction::West, Route::TurnRight)   => (Direction::North, CENTER_X - LANE_OFFSET, CENTER_Y - ROAD_HALF),
         (Direction::West, Route::TurnLeft)    => (Direction::South, CENTER_X + LANE_OFFSET, CENTER_Y + ROAD_HALF),
