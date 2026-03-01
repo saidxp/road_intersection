@@ -1,1 +1,0 @@
-/home/zbourazz/road_intersection/road_intersection/target/debug/road_intersection: /home/zbourazz/road_intersection/road_intersection/src/drawroad.rs /home/zbourazz/road_intersection/road_intersection/src/main.rs /home/zbourazz/road_intersection/road_intersection/src/traffic_light.rs /home/zbourazz/road_intersection/road_intersection/src/vehicle.rs
